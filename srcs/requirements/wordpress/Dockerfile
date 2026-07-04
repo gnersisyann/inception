@@ -3,6 +3,7 @@ FROM debian:bookworm
 RUN apt-get update && apt-get install -y \
 	php-fpm \
 	php-mysql \
+	php-redis \
 	php-curl \
 	php-gd \
 	php-mbstring \
@@ -10,6 +11,7 @@ RUN apt-get update && apt-get install -y \
 	php-zip \
 	curl \
 	mariadb-client \
+	redis-tools \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \

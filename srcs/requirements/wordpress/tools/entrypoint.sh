@@ -66,6 +66,25 @@ if ! ${WP_CLI} user get "${WP_USER}" >/dev/null 2>&1; then
 		--user_pass="${WP_USER_PASSWORD}"
 fi
 
+REDIS_HOST="${REDIS_HOST:-redis}"
+
+if ${WP_CLI} core is-installed >/dev/null 2>&1; then
+	if redis-cli -h "${REDIS_HOST}" ping 2>/dev/null | grep -q PONG; then
+		if ! ${WP_CLI} plugin is-active redis-cache >/dev/null 2>&1; then
+			${WP_CLI} plugin install redis-cache --activate
+		fi
+
+		${WP_CLI} config set WP_REDIS_HOST "${REDIS_HOST}" --type=constant
+		${WP_CLI} config set WP_REDIS_PORT 6379 --type=constant --raw
+
+		if ! ${WP_CLI} redis status 2>/dev/null | grep -qi "connected"; then
+			${WP_CLI} redis enable
+		fi
+	else
+		echo "Redis is not available — skipping object cache setup."
+	fi
+fi
+
 chown -R www-data:www-data "${WP_PATH}"
 
 exec php-fpm8.2 -F

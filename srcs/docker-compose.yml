@@ -18,6 +18,15 @@ services:
     networks:
       - inception
 
+  redis:
+    build:
+      context: ./requirements/bonus/redis
+    image: redis:inception
+    container_name: ${CONTAINER_REDIS}
+    restart: on-failure
+    networks:
+      - inception
+
   wordpress:
     build:
       context: ./requirements/wordpress
@@ -26,10 +35,12 @@ services:
     restart: on-failure
     depends_on:
       - mariadb
+      - redis
     env_file:
       - .env
     environment:
       DB_HOST: ${CONTAINER_MARIADB}
+      REDIS_HOST: ${CONTAINER_REDIS}
     secrets:
       - db_password
       - credentials
@@ -57,6 +68,48 @@ services:
     networks:
       - inception
 
+  ftp:
+    build:
+      context: ./requirements/bonus/ftp
+    image: ftp:inception
+    container_name: ${CONTAINER_FTP}
+    restart: on-failure
+    env_file:
+      - .env
+    secrets:
+      - ftp_password
+    ports:
+      - "21:21"
+      - "21100-21110:21100-21110"
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception
+
+  static:
+    build:
+      context: ./requirements/bonus/static
+    image: static:inception
+    container_name: ${CONTAINER_STATIC}
+    restart: on-failure
+    ports:
+      - "${STATIC_PORT}:8080"
+    networks:
+      - inception
+
+  adminer:
+    build:
+      context: ./requirements/bonus/adminer
+    image: adminer:inception
+    container_name: ${CONTAINER_ADMINER}
+    restart: on-failure
+    depends_on:
+      - mariadb
+    ports:
+      - "${ADMINER_PORT}:8080"
+    networks:
+      - inception
+
 secrets:
   db_root_password:
     file: ../secrets/db_root_password.txt
@@ -64,6 +117,8 @@ secrets:
     file: ../secrets/db_password.txt
   credentials:
     file: ../secrets/credentials.txt
+  ftp_password:
+    file: ../secrets/ftp_password.txt
 
 networks:
   inception:
