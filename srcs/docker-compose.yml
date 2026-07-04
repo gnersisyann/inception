@@ -1,0 +1,93 @@
+services:
+  mariadb:
+    build:
+      context: ./requirements/mariadb
+    image: mariadb:inception
+    container_name: ${CONTAINER_MARIADB}
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+    secrets:
+      - db_root_password
+      - db_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - inception
+
+  wordpress:
+    build:
+      context: ./requirements/wordpress
+    image: wordpress:inception
+    container_name: ${CONTAINER_WORDPRESS}
+    restart: on-failure
+    depends_on:
+      - mariadb
+    env_file:
+      - .env
+    environment:
+      DB_HOST: ${CONTAINER_MARIADB}
+    secrets:
+      - db_password
+      - credentials
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception
+
+  nginx:
+    build:
+      context: ./requirements/nginx
+    image: nginx:inception
+    container_name: ${CONTAINER_NGINX}
+    restart: on-failure
+    depends_on:
+      - wordpress
+    env_file:
+      - .env
+    environment:
+      WORDPRESS_HOST: ${CONTAINER_WORDPRESS}
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress_data:/var/www/html:ro
+    networks:
+      - inception
+
+secrets:
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  db_password:
+    file: ../secrets/db_password.txt
+  credentials:
+    file: ../secrets/credentials.txt
+
+networks:
+  inception:
+    driver: bridge
+
+volumes:
+  mariadb_data:
+  wordpress_data:
+
+# LINUX_VM: replace the volumes section above with bind mounts:
+#
+# volumes:
+#   mariadb_data:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: /home/ganersis/data/mariadb
+#   wordpress_data:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: /home/ganersis/data/wordpress
+#
+# Before first launch on VM, create directories:
+#   mkdir -p /home/ganersis/data/mariadb /home/ganersis/data/wordpress

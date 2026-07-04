@@ -6,6 +6,14 @@ DATADIR="/var/lib/mysql"
 # Expected env vars (set in docker-compose from .env + secrets):
 #   MYSQL_ROOT_PASSWORD, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
 
+if [ -f /run/secrets/db_root_password ]; then
+	MYSQL_ROOT_PASSWORD="$(tr -d '\n' < /run/secrets/db_root_password)"
+fi
+
+if [ -f /run/secrets/db_password ]; then
+	MYSQL_PASSWORD="$(tr -d '\n' < /run/secrets/db_password)"
+fi
+
 if [ ! -d "${DATADIR}/mysql" ]; then
 	echo "Initializing MariaDB data directory..."
 

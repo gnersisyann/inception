@@ -10,6 +10,14 @@ WP_CLI="wp --path=${WP_PATH} --allow-root"
 #   WP_USER, WP_USER_EMAIL, WP_USER_PASSWORD
 #   WP_TITLE (optional)
 
+if [ -f /run/secrets/db_password ]; then
+	DB_PASSWORD="$(tr -d '\n' < /run/secrets/db_password)"
+fi
+
+if [ -f /run/secrets/credentials ]; then
+	WP_ADMIN_PASSWORD="$(tr -d '\n' < /run/secrets/credentials)"
+fi
+
 echo "Waiting for MariaDB..."
 retries=30
 until mariadb-admin ping -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}" --silent 2>/dev/null; do
