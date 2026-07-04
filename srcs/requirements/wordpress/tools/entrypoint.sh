@@ -18,9 +18,14 @@ if [ -f /run/secrets/credentials ]; then
 	WP_ADMIN_PASSWORD="$(tr -d '\n' < /run/secrets/credentials)"
 fi
 
+if [ -z "${DB_PASSWORD}" ] || [ -z "${WP_ADMIN_PASSWORD}" ]; then
+	echo "WordPress secrets are not fully configured."
+	exit 1
+fi
+
 echo "Waiting for MariaDB..."
 retries=30
-until mariadb-admin ping -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}" --silent 2>/dev/null; do
+until mariadb -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}" -e "SELECT 1;" >/dev/null 2>&1; do
 	retries=$((retries - 1))
 	if [ "${retries}" -le 0 ]; then
 		echo "MariaDB is not available."

@@ -14,6 +14,11 @@ if [ -f /run/secrets/db_password ]; then
 	MYSQL_PASSWORD="$(tr -d '\n' < /run/secrets/db_password)"
 fi
 
+if [ -z "${MYSQL_ROOT_PASSWORD}" ] || [ -z "${MYSQL_DATABASE}" ] || [ -z "${MYSQL_USER}" ] || [ -z "${MYSQL_PASSWORD}" ]; then
+	echo "MariaDB environment is not fully configured."
+	exit 1
+fi
+
 if [ ! -d "${DATADIR}/mysql" ]; then
 	echo "Initializing MariaDB data directory..."
 
@@ -41,4 +46,4 @@ if [ ! -d "${DATADIR}/mysql" ]; then
 	rm -f "${tfile}"
 fi
 
-exec mysqld --user=mysql --datadir="${DATADIR}"
+exec mysqld --user=mysql --datadir="${DATADIR}" --bind-address=0.0.0.0
