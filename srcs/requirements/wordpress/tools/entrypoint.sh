@@ -53,7 +53,9 @@ if [ ! -f "${WP_PATH}/wp-config.php" ]; then
 		--admin_password="${WP_ADMIN_PASSWORD}" \
 		--admin_email="${WP_ADMIN_EMAIL}" \
 		--skip-email
+fi
 
+if ! ${WP_CLI} user get "${WP_USER}" >/dev/null 2>&1; then
 	if [ -z "${WP_USER_PASSWORD}" ]; then
 		echo "WP_USER_PASSWORD is not set."
 		exit 1
@@ -61,8 +63,7 @@ if [ ! -f "${WP_PATH}/wp-config.php" ]; then
 
 	${WP_CLI} user create "${WP_USER}" "${WP_USER_EMAIL}" \
 		--role=author \
-		--user_pass="${WP_USER_PASSWORD}" \
-		--skip-email
+		--user_pass="${WP_USER_PASSWORD}"
 fi
 
 chown -R www-data:www-data "${WP_PATH}"
