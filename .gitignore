@@ -1,0 +1,23 @@
+# Environment variables (credentials, domain config)
+srcs/.env
+
+# Secrets — never commit passwords or API keys
+secrets/*
+!secrets/.gitkeep
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor / IDE
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local data (if created during dev)
+data/
+
+# LINUX_VM: persistent volumes must live on the host at /home/ganersis/data — not in this repo
