@@ -14,6 +14,7 @@ This guide explains how to set up, build, and maintain the Inception project fro
 ```
 inception/
 ├── Makefile
+├── setup.sh                    # First-time machine setup
 ├── README.md
 ├── USER_DOC.md
 ├── DEV_DOC.md
@@ -41,6 +42,24 @@ inception/
 ```
 
 ## Environment setup
+
+### Quick setup (recommended)
+
+```bash
+git clone <your-repo-url> inception
+cd inception
+./setup.sh
+make
+```
+
+`setup.sh` will:
+- Install `git`, `make`, `curl`, `openssl`, and Docker (Debian only)
+- Create `srcs/.env` from `.env.example` with project defaults
+- Generate missing passwords in `secrets/`
+- On Linux: create `/home/ganersis/data/` and patch `docker-compose.yml` bind mounts
+- Add `ganersis.42.fr` to `/etc/hosts`
+
+### Manual setup
 
 ### 1. Clone the repository
 

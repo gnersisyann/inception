@@ -89,7 +89,20 @@ On the evaluation VM, named volumes are replaced with bind mounts pointing to `/
   127.0.0.1  ganersis.42.fr
   ```
 
-### First-time setup
+### First-time setup (automated)
+
+On a fresh Debian VM:
+
+```bash
+git clone <your-repo-url> inception
+cd inception
+./setup.sh
+make
+```
+
+`setup.sh` installs Docker (Debian), creates `.env` and `secrets/`, configures Linux bind mounts, and adds `ganersis.42.fr` to `/etc/hosts`.
+
+### First-time setup (manual)
 
 ```bash
 cp srcs/.env.example srcs/.env
