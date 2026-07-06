@@ -55,7 +55,7 @@ In this project, Docker runs **inside** a VM. The VM provides the evaluation env
 | Loaded via `env_file` in Compose | Mounted as files under `/run/secrets/` |
 | Convenient for non-sensitive config | Better for credentials (read by entrypoint scripts) |
 
-Passwords are **not** hard-coded in Dockerfiles. The WordPress second-user password is stored in `.env` (gitignored) because it must be known for login during evaluation.
+Passwords are **not** hard-coded in Dockerfiles. All credentials live in `secrets/` and are injected via Docker secrets at runtime.
 
 ### Docker Network vs Host Network
 
@@ -112,6 +112,8 @@ cp srcs/.env.example srcs/.env
 #   secrets/db_root_password.txt
 #   secrets/db_password.txt
 #   secrets/credentials.txt
+#   secrets/wp_user_password.txt
+#   secrets/ftp_password.txt
 ```
 
 ### Run the project

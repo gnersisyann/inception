@@ -163,7 +163,6 @@ setup_env() {
 			WP_ADMIN_EMAIL=)        echo "WP_ADMIN_EMAIL=${LOGIN}@student.42yerevan.am" ;;
 			WP_USER=)               echo "WP_USER=${LOGIN}_user" ;;
 			WP_USER_EMAIL=)         echo "WP_USER_EMAIL=${LOGIN}.user@student.42yerevan.am" ;;
-			WP_USER_PASSWORD=)       echo "WP_USER_PASSWORD=$(generate_password)" ;;
 			*)                      echo "${line}" ;;
 		esac
 	done < "${ENV_FILE}" > "${tmp}"
@@ -182,6 +181,7 @@ setup_secrets() {
 	write_secret_if_missing "${SECRETS_DIR}/db_password.txt"
 	write_secret_if_missing "${SECRETS_DIR}/credentials.txt"
 	write_secret_if_missing "${SECRETS_DIR}/ftp_password.txt"
+	write_secret_if_missing "${SECRETS_DIR}/wp_user_password.txt"
 	chmod 600 "${SECRETS_DIR}"/*.txt 2>/dev/null || true
 	info "Secrets ready in ${SECRETS_DIR}/"
 }
@@ -289,8 +289,8 @@ main() {
 	echo "  http://localhost:8081   (adminer)"
 	echo ""
 	echo "Credentials:"
-	echo "  secrets/          — DB + WP admin + FTP passwords"
-	echo "  srcs/.env         — WP_USER_PASSWORD + config"
+	echo "  secrets/          — all passwords (DB, WP admin, WP user, FTP)"
+	echo "  srcs/.env         — non-sensitive config"
 	echo ""
 	if is_linux && ! groups "${USER}" 2>/dev/null | grep -q docker; then
 		warn "Run 'newgrp docker' or re-login before 'make' if docker permission denied."

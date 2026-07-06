@@ -54,7 +54,7 @@ https://ganersis.42.fr/wp-admin/
 | Account | Username | Password location | Role |
 |---------|----------|-------------------|------|
 | Administrator | `ganersis` | `secrets/credentials.txt` | Full admin |
-| Second user | `ganersis_user` | `srcs/.env` → `WP_USER_PASSWORD` | Author |
+| Second user | `ganersis_user` | `secrets/wp_user_password.txt` | Author |
 
 > The administrator username intentionally does **not** contain `admin` or `administrator` (project requirement).
 
@@ -65,7 +65,7 @@ https://ganersis.42.fr/wp-admin/
 | MariaDB root password | `secrets/db_root_password.txt` |
 | MariaDB application user password | `secrets/db_password.txt` |
 | WordPress admin password | `secrets/credentials.txt` |
-| WordPress second-user password | `srcs/.env` (`WP_USER_PASSWORD`) |
+| WordPress second-user password | `secrets/wp_user_password.txt` |
 
 **Never commit** `srcs/.env` or files inside `secrets/` to Git.
 

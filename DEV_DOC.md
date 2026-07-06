@@ -21,7 +21,8 @@ inception/
 ├── secrets/                    # Passwords (not in Git)
 │   ├── db_root_password.txt
 │   ├── db_password.txt
-│   └── credentials.txt
+│   ├── credentials.txt
+│   └── wp_user_password.txt
 └── srcs/
     ├── .env                    # Local config (not in Git)
     ├── .env.example            # Template for .env
@@ -89,7 +90,6 @@ WP_ADMIN_USER=ganersis
 WP_ADMIN_EMAIL=ganersis@student.42yerevan.am
 WP_USER=ganersis_user
 WP_USER_EMAIL=ganersis.user@student.42yerevan.am
-WP_USER_PASSWORD=<your-password>
 ```
 
 ### 3. Create secrets
@@ -98,9 +98,11 @@ Each file contains **one password on a single line** (no quotes, no spaces):
 
 ```bash
 mkdir -p secrets
-echo "your_root_password"    > secrets/db_root_password.txt
-echo "your_db_password"      > secrets/db_password.txt
-echo "your_admin_password"   > secrets/credentials.txt
+echo "your_root_password"     > secrets/db_root_password.txt
+echo "your_db_password"       > secrets/db_password.txt
+echo "your_admin_password"    > secrets/credentials.txt
+echo "your_wp_user_password"  > secrets/wp_user_password.txt
+echo "your_ftp_password"      > secrets/ftp_password.txt
 chmod 600 secrets/*.txt
 ```
 
@@ -186,6 +188,7 @@ Compose mounts secret files into `/run/secrets/`. Entrypoint scripts read them a
 | `db_root_password.txt` | mariadb entrypoint | `MYSQL_ROOT_PASSWORD` |
 | `db_password.txt` | mariadb + wordpress | `MYSQL_PASSWORD` / `DB_PASSWORD` |
 | `credentials.txt` | wordpress entrypoint | `WP_ADMIN_PASSWORD` |
+| `wp_user_password.txt` | wordpress entrypoint | `WP_USER_PASSWORD` |
 
 ## Service details
 

@@ -7,7 +7,7 @@ WP_CLI="wp --path=${WP_PATH} --allow-root"
 # Expected env vars (set in docker-compose from .env + secrets):
 #   DOMAIN_NAME, DB_HOST, DB_NAME, DB_USER, DB_PASSWORD
 #   WP_ADMIN_USER, WP_ADMIN_EMAIL, WP_ADMIN_PASSWORD
-#   WP_USER, WP_USER_EMAIL, WP_USER_PASSWORD
+#   WP_USER, WP_USER_EMAIL, WP_USER_PASSWORD (from secrets/wp_user_password.txt)
 #   WP_TITLE (optional)
 
 if [ -f /run/secrets/db_password ]; then
@@ -16,6 +16,10 @@ fi
 
 if [ -f /run/secrets/credentials ]; then
 	WP_ADMIN_PASSWORD="$(tr -d '\n' < /run/secrets/credentials)"
+fi
+
+if [ -f /run/secrets/wp_user_password ]; then
+	WP_USER_PASSWORD="$(tr -d '\n' < /run/secrets/wp_user_password)"
 fi
 
 if [ -z "${DB_PASSWORD}" ] || [ -z "${WP_ADMIN_PASSWORD}" ]; then
