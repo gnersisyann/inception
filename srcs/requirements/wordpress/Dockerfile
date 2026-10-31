@@ -12,12 +12,13 @@ RUN apt-get update && apt-get install -y \
 	curl \
 	mariadb-client \
 	redis-tools \
+	libfcgi-bin \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+RUN curl -fsSL -o /usr/local/bin/wp https://github.com/wp-cli/wp-cli/releases/download/v2.12.0/wp-cli-2.12.0.phar \
 	&& chmod +x /usr/local/bin/wp
 
-RUN mkdir -p /var/www/html \
+RUN mkdir -p /var/www/html /run/php \
 	&& chown -R www-data:www-data /var/www/html
 
 WORKDIR /var/www/html

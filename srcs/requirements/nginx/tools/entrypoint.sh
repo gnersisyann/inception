@@ -15,7 +15,8 @@ if [ ! -f "${SSL_DIR}/nginx.crt" ]; then
 		-newkey rsa:2048 \
 		-keyout "${SSL_DIR}/nginx.key" \
 		-out "${SSL_DIR}/nginx.crt" \
-		-subj "/CN=${DOMAIN_NAME}"
+		-subj "/CN=${DOMAIN_NAME}" \
+		-addext "subjectAltName=DNS:${DOMAIN_NAME}"
 fi
 
 export DOMAIN_NAME WORDPRESS_HOST
@@ -23,4 +24,5 @@ envsubst '${DOMAIN_NAME} ${WORDPRESS_HOST}' \
 	< /etc/nginx/templates/default.conf.template \
 	> /etc/nginx/conf.d/default.conf
 
+nginx -t
 exec nginx -g 'daemon off;'

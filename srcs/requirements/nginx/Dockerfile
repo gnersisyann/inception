@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y \
 	nginx \
 	openssl \
 	gettext-base \
+	curl \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/nginx/ssl /etc/nginx/templates /var/www/html \

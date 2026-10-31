@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN mkdir -p /var/www/adminer \
 	&& curl -fsSL -o /var/www/adminer/index.php \
-		https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php
+		https://github.com/vrana/adminer/releases/download/v6.2.0/adminer-6.2.0.php
 
 WORKDIR /var/www/adminer
 

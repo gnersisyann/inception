@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Inception — first-time setup for a new machine
-# Usage: ./setup.sh
-# Tested on: Debian Bookworm (42 VM)
+# Usage: ./setup.sh <42-login>
+# Target: Debian 13 VM; containers use Debian 12 (Bookworm).
 # =============================================================================
 
 set -euo pipefail
+umask 077
 
-LOGIN="ganersis"
+LOGIN="${1:-${INCEPTION_LOGIN:-}}"
 DOMAIN="${LOGIN}.42.fr"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${PROJECT_ROOT}/srcs/.env"
 ENV_EXAMPLE="${PROJECT_ROOT}/srcs/.env.example"
-COMPOSE_FILE="${PROJECT_ROOT}/srcs/docker-compose.yml"
 SECRETS_DIR="${PROJECT_ROOT}/secrets"
 DATA_DIR="/home/${LOGIN}/data"
 
@@ -51,7 +51,7 @@ run_as_root() {
 }
 
 generate_password() {
-	openssl rand -base64 16 | tr -d '/+=' | head -c 18
+	openssl rand -hex 24
 }
 
 write_secret_if_missing() {
@@ -75,9 +75,9 @@ install_system_packages() {
 	info "Installing system packages..."
 	run_as_root apt-get update -qq
 	run_as_root apt-get install -y -qq \
-		git make curl ca-certificates gnupg lsb-release openssl
+		git make curl ca-certificates gnupg lsb-release openssl jq
 
-	if ! command -v docker >/dev/null 2>&1; then
+	if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
 		info "Installing Docker..."
 		run_as_root install -m 0755 -d /etc/apt/keyrings
 		if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
@@ -98,9 +98,11 @@ https://download.docker.com/linux/debian $(. /etc/os-release && echo "${VERSION_
 			docker-buildx-plugin docker-compose-plugin
 	fi
 
-	if [[ "${EUID}" -ne 0 ]] && ! groups "${USER}" | grep -q docker; then
-		run_as_root usermod -aG docker "${USER}"
-		warn "Added '${USER}' to docker group. Log out and back in if 'docker' fails without sudo."
+	run_as_root systemctl enable --now docker
+	local operator="${SUDO_USER:-${USER}}"
+	if [[ "${operator}" != root ]] && ! id -nG "${operator}" | tr ' ' '\n' | grep -qx docker; then
+		run_as_root usermod -aG docker "${operator}"
+		warn "Added '${operator}' to docker group. Log out and back in before running make."
 	fi
 }
 
@@ -112,7 +114,7 @@ verify_docker() {
 	need_cmd docker
 
 	if ! docker info >/dev/null 2>&1; then
-		if has_sudo && sudo docker info >/dev/null 2>&1; then
+		if run_as_root docker info >/dev/null 2>&1; then
 			warn "Docker works with sudo only. Run: newgrp docker  (or re-login)"
 		else
 			error "Docker is not running or not accessible."
@@ -141,8 +143,11 @@ setup_env() {
 	# Fill empty values with project defaults (idempotent)
 	local tmp
 	tmp="$(mktemp)"
+	local vm_ip="${INCEPTION_VM_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+	vm_ip="${vm_ip:-127.0.0.1}"
 	while IFS= read -r line || [[ -n "${line}" ]]; do
 		case "${line}" in
+			LOGIN=)                echo "LOGIN=${LOGIN}" ;;
 			DOMAIN_NAME=)           echo "DOMAIN_NAME=${DOMAIN}" ;;
 			CONTAINER_NGINX=)       echo "CONTAINER_NGINX=nginx" ;;
 			CONTAINER_MARIADB=)     echo "CONTAINER_MARIADB=mariadb" ;;
@@ -151,6 +156,7 @@ setup_env() {
 			REDIS_HOST=)            echo "REDIS_HOST=redis" ;;
 			CONTAINER_FTP=)         echo "CONTAINER_FTP=ftp" ;;
 			FTP_USER=)              echo "FTP_USER=${LOGIN}_ftp" ;;
+			FTP_PASV_ADDRESS=)      echo "FTP_PASV_ADDRESS=${vm_ip}" ;;
 			CONTAINER_STATIC=)      echo "CONTAINER_STATIC=static" ;;
 			STATIC_PORT=)           echo "STATIC_PORT=8080" ;;
 			CONTAINER_ADMINER=)    echo "CONTAINER_ADMINER=adminer" ;;
@@ -159,15 +165,17 @@ setup_env() {
 			DB_USER=)               echo "DB_USER=${LOGIN}_user" ;;
 			DB_HOST=)               echo "DB_HOST=mariadb" ;;
 			WP_TITLE=)              echo "WP_TITLE=${LOGIN}_blog" ;;
-			WP_ADMIN_USER=)         echo "WP_ADMIN_USER=${LOGIN}" ;;
-			WP_ADMIN_EMAIL=)        echo "WP_ADMIN_EMAIL=${LOGIN}@student.42yerevan.am" ;;
+			WP_ADMIN_USER=)         echo "WP_ADMIN_USER=site_owner" ;;
+			WP_ADMIN_EMAIL=)        echo "WP_ADMIN_EMAIL=${LOGIN}@student.42.fr" ;;
 			WP_USER=)               echo "WP_USER=${LOGIN}_user" ;;
-			WP_USER_EMAIL=)         echo "WP_USER_EMAIL=${LOGIN}.user@student.42yerevan.am" ;;
+			WP_USER_EMAIL=)         echo "WP_USER_EMAIL=${LOGIN}.user@student.42.fr" ;;
 			*)                      echo "${line}" ;;
 		esac
 	done < "${ENV_FILE}" > "${tmp}"
 	mv "${tmp}" "${ENV_FILE}"
 	chmod 600 "${ENV_FILE}"
+	grep -qxF "DOMAIN_NAME=${DOMAIN}" "${ENV_FILE}" \
+		|| error "Existing DOMAIN_NAME differs from ${DOMAIN}. Use the original login or edit .env explicitly."
 	info "Configured ${ENV_FILE}"
 }
 
@@ -177,6 +185,7 @@ setup_env() {
 
 setup_secrets() {
 	mkdir -p "${SECRETS_DIR}"
+	chmod 700 "${SECRETS_DIR}"
 	write_secret_if_missing "${SECRETS_DIR}/db_root_password.txt"
 	write_secret_if_missing "${SECRETS_DIR}/db_password.txt"
 	write_secret_if_missing "${SECRETS_DIR}/credentials.txt"
@@ -187,53 +196,42 @@ setup_secrets() {
 }
 
 # -----------------------------------------------------------------------------
-# 5. Linux VM: bind mounts + data directories
+# 5. Linux VM: Docker-managed named volumes under the learner's data directory
 # -----------------------------------------------------------------------------
 
 setup_linux_volumes() {
 	if ! is_linux; then
-		warn "Skipping Linux bind mounts (macOS uses Docker named volumes)."
+		warn "The required volume location must be configured on a Linux VM."
 		return
 	fi
 
-	info "Creating data directories..."
-	run_as_root mkdir -p "${DATA_DIR}/mariadb" "${DATA_DIR}/wordpress"
-	run_as_root chown -R "${USER}:${USER}" "/home/${LOGIN}/data" 2>/dev/null \
-		|| run_as_root chown -R "${USER}" "/home/${LOGIN}/data"
-
-	if grep -q "device: ${DATA_DIR}/mariadb" "${COMPOSE_FILE}"; then
-		info "docker-compose.yml already has Linux bind mounts."
+	local target="${DATA_DIR}/docker"
+	local current
+	current="$(run_as_root docker info --format '{{.DockerRootDir}}')"
+	if [[ "${current}" == "${target}" ]]; then
+		info "Docker named volumes already use ${target}/volumes."
 		return
 	fi
 
-	info "Patching docker-compose.yml for Linux bind mounts..."
+	if [[ -n "$(run_as_root docker ps -aq)$(run_as_root docker image ls -q)$(run_as_root docker volume ls -q)" ]]; then
+		error "Docker already contains data. Back up and migrate it before changing data-root to ${target}."
+	fi
+	need_cmd jq
 	local tmp
 	tmp="$(mktemp)"
-	awk -v data="${DATA_DIR}" '
-		/^volumes:$/ && !done {
-			print "volumes:"
-			print "  mariadb_data:"
-			print "    driver: local"
-			print "    driver_opts:"
-			print "      type: none"
-			print "      o: bind"
-			print "      device: " data "/mariadb"
-			print "  wordpress_data:"
-			print "    driver: local"
-			print "    driver_opts:"
-			print "      type: none"
-			print "      o: bind"
-			print "      device: " data "/wordpress"
-			skip = 1
-			done = 1
-			next
-		}
-		skip && /^[^ ]/ { skip = 0 }
-		skip { next }
-		{ print }
-	' "${COMPOSE_FILE}" > "${tmp}"
-	mv "${tmp}" "${COMPOSE_FILE}"
-	info "Bind mounts set to ${DATA_DIR}/"
+	if [[ -f /etc/docker/daemon.json ]]; then
+		run_as_root jq --arg target "${target}" '. + {"data-root": $target}' /etc/docker/daemon.json > "${tmp}"
+	else
+		jq -n --arg target "${target}" '{"data-root": $target}' > "${tmp}"
+	fi
+	run_as_root dockerd --validate --config-file "${tmp}"
+	run_as_root mkdir -p /etc/docker "${target}"
+	run_as_root install -m 0644 "${tmp}" /etc/docker/daemon.json
+	rm -f "${tmp}"
+	run_as_root systemctl restart docker
+	[[ "$(run_as_root docker info --format '{{.DockerRootDir}}')" == "${target}" ]] \
+		|| error "Docker data-root did not change to ${target}."
+	info "Named volumes will be stored in ${target}/volumes; no bind mounts are used."
 }
 
 # -----------------------------------------------------------------------------
@@ -247,7 +245,7 @@ setup_hosts() {
 		[[ -z "${ip}" ]] && ip="127.0.0.1"
 	fi
 
-	if grep -q "${DOMAIN}" /etc/hosts 2>/dev/null; then
+	if awk -v domain="${DOMAIN}" '{for (field=2; field<=NF; field++) if ($field == domain) found=1} END {exit !found}' /etc/hosts; then
 		info "/etc/hosts already has ${DOMAIN}"
 		return
 	fi
@@ -261,6 +259,10 @@ setup_hosts() {
 # -----------------------------------------------------------------------------
 
 main() {
+	[[ "${LOGIN}" =~ ^[a-z][a-z0-9_]{0,30}$ ]] || error "Usage: ./setup.sh <42-login> (lowercase letters, digits, underscores)."
+	if ! is_linux || ! is_debian; then
+		error "Run setup inside your Debian Linux VM, not on macOS."
+	fi
 	echo "============================================"
 	echo " Inception setup — login: ${LOGIN}"
 	echo "============================================"
@@ -273,6 +275,7 @@ main() {
 	setup_secrets
 	setup_linux_volumes
 	setup_hosts
+	docker compose --env-file "${ENV_FILE}" -f srcs/docker-compose.yml config -q
 
 	echo ""
 	echo "============================================"
@@ -292,9 +295,11 @@ main() {
 	echo "  secrets/          — all passwords (DB, WP admin, WP user, FTP)"
 	echo "  srcs/.env         — non-sensitive config"
 	echo ""
-	if is_linux && ! groups "${USER}" 2>/dev/null | grep -q docker; then
-		warn "Run 'newgrp docker' or re-login before 'make' if docker permission denied."
+	if ! docker info >/dev/null 2>&1; then
+		warn "Log out and back in before make, or run sudo make."
 	fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	main "$@"
+fi

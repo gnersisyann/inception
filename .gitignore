@@ -19,5 +19,7 @@ secrets/*
 
 # Local data (if created during dev)
 data/
+snapshot/
+snapshot-*/
 
-# LINUX_VM: persistent volumes must live on the host at /home/ganersis/data — not in this repo
+# Persistent named volume data belongs under /home/<login>/data, not in Git.

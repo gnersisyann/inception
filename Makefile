@@ -3,30 +3,45 @@
 # Runs docker compose from srcs/
 # =============================================================================
 
-COMPOSE = docker compose -f srcs/docker-compose.yml
+COMPOSE = docker compose --env-file srcs/.env -f srcs/docker-compose.yml
 
-.PHONY: all build up down clean re logs
+.PHONY: all setup build up down stop start clean re logs status check backup
 
 # Default: build images and start the stack
-all: build up
+all: up
+
+setup:
+	bash setup.sh "$(LOGIN)"
 
 build:
 	$(COMPOSE) build
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --build --wait --wait-timeout 300
+
+stop:
+	$(COMPOSE) stop
+
+start:
+	$(COMPOSE) start
 
 down:
 	$(COMPOSE) down
 
-clean: down
-	$(COMPOSE) down --volumes --rmi local
+clean:
+	$(COMPOSE) down --rmi local
 
-re: clean all
+re: clean
+	$(MAKE) all
 
 logs:
 	$(COMPOSE) logs -f
 
-# LINUX_VM: before first `make up` on the VM, create data directories:
-#   mkdir -p /home/ganersis/data/mariadb /home/ganersis/data/wordpress
-# Then switch volumes in srcs/docker-compose.yml to bind mounts (see LINUX_VM comment there).
+status:
+	$(COMPOSE) ps
+
+check:
+	bash srcs/tools/verify.sh
+
+backup:
+	$(COMPOSE) exec -T backup /usr/local/bin/backup.sh
